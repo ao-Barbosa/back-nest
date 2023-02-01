@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
-import configuration from './config/configuration';
+import { configuration } from './config/configuration';
 
 import { AuthModule } from './auth/auth.module';
 import { TasklistsModule } from './tasklists/tasklists.module';
@@ -11,6 +11,7 @@ import { TasklistsModule } from './tasklists/tasklists.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: `${process.cwd()}/env/${process.env.NODE_ENV}.env`,
       load: [configuration],
       isGlobal: true,
     }),
