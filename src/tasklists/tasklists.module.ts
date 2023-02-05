@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TaskListsController } from './tasklists.controller';
 import { TaskListsService } from './services/tasklists.service';
-import { TasksService } from './services/tasks.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { TaskList } from './models/tasklist.entity';
+import { MongooseModule } from '@nestjs/mongoose';
+import { TaskList, TaskListSchema } from './models/tasklist.schema';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TaskList])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: TaskList.name, schema: TaskListSchema },
+    ]),
+  ],
   controllers: [TaskListsController],
-  providers: [TaskListsService, TasksService],
+  providers: [TaskListsService],
 })
 export class TasklistsModule {}

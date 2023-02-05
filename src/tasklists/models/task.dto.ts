@@ -1,64 +1,44 @@
 import { ApiProperty } from '@nestjs/swagger';
-
-export interface Task {
-  _id: string;
-  name: string;
-  description: string;
-  completed: boolean;
-}
+import { ObjectId } from 'mongoose';
 
 export class CreateTaskRequest {
   @ApiProperty()
   name: string;
+
   @ApiProperty()
   description: string;
-  completed: boolean;
 
-  constructor({ name, description }: Pick<Task, 'name' | 'description'>) {
-    this.name = name;
-    this.description = description;
-    this.completed = false;
-  }
+  @ApiProperty()
+  completed: boolean;
 }
 
 export class UpdateTaskRequest {
-  @ApiProperty()
+  @ApiProperty({ required: false })
   name?: string;
-  @ApiProperty()
-  description?: string;
-  @ApiProperty()
-  completed?: boolean;
 
-  constructor({
-    name,
-    description,
-    completed,
-  }: Partial<Pick<Task, 'name' | 'description' | 'completed'>>) {
-    this.name = name;
-    this.description = description;
-    this.completed = completed;
-  }
+  @ApiProperty({ required: false })
+  description?: string;
+
+  @ApiProperty({ required: false })
+  completed?: boolean;
 }
 
 export class TaskResponse {
   @ApiProperty()
-  _id: string;
+  _id: ObjectId;
+
   @ApiProperty()
   name: string;
+
   @ApiProperty()
   description: string;
+
   @ApiProperty()
   completed: boolean;
 
-  constructor({
-    _id,
-    name,
-    description,
-    completed,
-  }: Pick<Task, '_id' | 'name' | 'description' | 'completed'>) {
-    this._id = _id;
-    this.name = name;
-    this.description = description;
-    this.completed = completed;
-  }
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
 }

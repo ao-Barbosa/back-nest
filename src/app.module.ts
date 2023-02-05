@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { join } from 'path';
 import { configuration } from './config/configuration';
 
 import { AuthModule } from './auth/auth.module';
 import { TasklistsModule } from './tasklists/tasklists.module';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
   imports: [
@@ -15,15 +14,10 @@ import { TasklistsModule } from './tasklists/tasklists.module';
       load: [configuration],
       isGlobal: true,
     }),
-    TypeOrmModule.forRootAsync({
+    MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        type: 'mongodb',
-        url: configService.get<string>('MONGO_CONNECTION_URL'),
-        useNewUrlParser: true,
-        entities: [join(__dirname, '**/**.entity.{ts,js}')],
-        logging: ['error', 'query'],
-        synchronized: true,
+        uri: configService.get<string>('MONGO_CONNECTION_URL'),
       }),
       inject: [ConfigService],
     }),

@@ -8,13 +8,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiAcceptedResponse,
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthUserId } from 'src/auth/decorators/AuthUser';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import {
@@ -24,9 +18,9 @@ import {
 } from './models/task.dto';
 import {
   CreateTaskListRequest,
-  TaskListResponse,
   UpdateTaskListRequest,
 } from './models/tasklist.dto';
+import { TaskList } from './models/tasklist.schema';
 import { TaskListsService } from './services/tasklists.service';
 
 @UseGuards(JwtAuthGuard)
@@ -34,104 +28,75 @@ import { TaskListsService } from './services/tasklists.service';
 @ApiTags('TaskList')
 @Controller('tasklists')
 export class TaskListsController {
-  constructor(private readonly taskListsService: TaskListsService) {}
+  constructor(private readonly taskListService: TaskListsService) {}
 
   @Get()
-  @ApiOkResponse({
-    description: 'Busca de tarefas',
-    type: [TaskListResponse],
-  })
-  async getAll(@AuthUserId() userId: string): Promise<TaskListResponse[]> {
-    return await this.taskListsService.getAll(userId);
+  async findAll(@AuthUserId() userId: string): Promise<TaskList[]> {
+    return this.taskListService.getAllTaskLists(userId);
+  }
+
+  @Get(':taskListId')
+  async findOne(
+    @AuthUserId() userId: string,
+    @Param('taskListId') taskListId: string,
+  ): Promise<TaskList> {
+    return this.taskListService.getTaskList(taskListId, userId);
   }
 
   @Post()
-  @ApiCreatedResponse({
-    description: 'Lista de tarefas criada',
-    type: TaskListResponse,
-  })
   async create(
-    @Body() body: CreateTaskListRequest,
     @AuthUserId() userId: string,
-  ): Promise<TaskListResponse> {
-    return await this.taskListsService.create(body, userId);
+    @Body() createTaskList: CreateTaskListRequest,
+  ): Promise<TaskList> {
+    return this.taskListService.createTaskList(createTaskList, userId);
   }
 
-  @Get(':tasklistId')
-  @ApiOkResponse({
-    description: 'Busca de tarefa por ID',
-    type: TaskListResponse,
-  })
-  async getById(
-    @Param('tasklistId') tasklistId: string,
-    @AuthUserId() userId: string,
-  ): Promise<TaskListResponse> {
-    return await this.taskListsService.getById(tasklistId, userId);
-  }
-
-  @Put(':tasklistId')
-  @ApiOkResponse({
-    description: 'Atualização de tarefa por ID',
-    type: TaskListResponse,
-  })
+  @Put(':taskListId')
   async update(
-    @Param('tasklistId') tasklistId: string,
-    @Body() tasklist: UpdateTaskListRequest,
     @AuthUserId() userId: string,
-  ): Promise<TaskListResponse> {
-    return await this.taskListsService.update(tasklistId, tasklist, userId);
-  }
-
-  @Delete(':tasklistId')
-  @ApiAcceptedResponse({
-    description: 'Remoção de tarefa por ID',
-  })
-  async remove(
-    @Param('tasklistId') tasklistId: string,
-    @AuthUserId() userId: string,
-  ): Promise<void> {
-    return await this.taskListsService.remove(tasklistId, userId);
-  }
-
-  @Post(':tasklistId/task')
-  @ApiCreatedResponse({
-    description: 'Tarefa criada',
-  })
-  async createTask(
-    @Param('tasklistId') tasklistId: string,
-    @Body() task: CreateTaskRequest,
-    @AuthUserId() userId: string,
-  ): Promise<TaskResponse> {
-    return await this.taskListsService.createTask(tasklistId, task, userId);
-  }
-
-  @Put(':tasklistId/task/:taskId')
-  @ApiOkResponse({
-    description: 'Tarefa atualizada',
-  })
-  async updateTask(
-    @Param('tasklistId') tasklistId: string,
-    @Param('taskId') taskId: string,
-    @Body() task: UpdateTaskRequest,
-    @AuthUserId() userId: string,
-  ): Promise<TaskResponse> {
-    return await this.taskListsService.updateTask(
-      tasklistId,
-      taskId,
-      task,
+    @Param('taskListId') taskListId: string,
+    @Body() updateTaskList: UpdateTaskListRequest,
+  ): Promise<TaskList> {
+    return this.taskListService.updateTaskList(
+      taskListId,
+      updateTaskList,
       userId,
     );
   }
 
-  @Delete(':tasklistId/task')
-  @ApiOkResponse({
-    description: 'Tarefa removida',
-  })
-  async removeTask(
-    @Param('tasklistId') tasklistId: string,
-    @Param('taskId') taskId: string,
+  @Delete(':taskListId')
+  async remove(
     @AuthUserId() userId: string,
+    @Param('taskListId') taskListId: string,
   ): Promise<void> {
-    return await this.taskListsService.removeTask(tasklistId, taskId, userId);
+    return this.taskListService.deleteTaskList(taskListId, userId);
+  }
+
+  @Post(':taskListId')
+  async createTask(
+    @AuthUserId() userId: string,
+    @Param('taskListId') taskListId: string,
+    @Body() task: CreateTaskRequest,
+  ): Promise<TaskResponse> {
+    return this.taskListService.createTask(taskListId, task, userId);
+  }
+
+  @Put(':taskListId/:taskId')
+  async updateTask(
+    @AuthUserId() userId: string,
+    @Param('taskListId') taskListId: string,
+    @Param('taskId') taskId: string,
+    @Body() task: UpdateTaskRequest,
+  ): Promise<TaskResponse> {
+    return this.taskListService.updateTask(taskListId, taskId, task, userId);
+  }
+
+  @Delete(':taskListId/:taskId')
+  async deleteTask(
+    @AuthUserId() userId: string,
+    @Param('taskListId') taskListId: string,
+    @Param('taskId') taskId: string,
+  ): Promise<void> {
+    return this.taskListService.deleteTask(taskListId, taskId, userId);
   }
 }

@@ -1,64 +1,39 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Task, TaskResponse } from './task.dto';
-
-interface TaskList {
-  _id: string;
-  name: string;
-  description: string;
-  tasks: Task[];
-  userId: string;
-}
+import { ObjectId } from 'mongoose';
+import { TaskResponse } from './task.dto';
 
 export class CreateTaskListRequest {
   @ApiProperty()
-  name: string;
-  @ApiProperty()
-  description: string;
+  readonly name: string;
 
-  constructor({ name, description }: Pick<TaskList, 'name' | 'description'>) {
-    this.name = name;
-    this.description = description;
-  }
+  @ApiProperty()
+  readonly description: string;
 }
 
 export class UpdateTaskListRequest {
   @ApiProperty()
-  name?: string;
-  @ApiProperty()
-  description?: string;
+  readonly name?: string;
 
-  constructor({
-    name,
-    description,
-  }: Partial<Pick<TaskList, 'name' | 'description'>>) {
-    this.name = name;
-    this.description = description;
-  }
+  @ApiProperty()
+  readonly description?: string;
 }
 
 export class TaskListResponse {
   @ApiProperty()
-  _id: string;
-  @ApiProperty()
-  name: string;
-  @ApiProperty()
-  description: string;
-  @ApiProperty({ type: () => Array<Task> })
-  tasks: TaskResponse[];
-  @ApiProperty()
-  userId: string;
+  readonly _id: ObjectId;
 
-  constructor({
-    _id,
-    name,
-    description,
-    userId,
-    tasks = [],
-  }: Pick<TaskList, '_id' | 'name' | 'description' | 'tasks' | 'userId'>) {
-    this._id = _id;
-    this.name = name;
-    this.description = description;
-    this.tasks = tasks;
-    this.userId = userId;
-  }
+  @ApiProperty()
+  readonly name: string;
+
+  @ApiProperty()
+  readonly description: string;
+
+  @ApiProperty()
+  readonly tasks: [TaskResponse];
+
+  @ApiProperty()
+  readonly createdAt: Date;
+
+  @ApiProperty()
+  readonly updatedAt: Date;
 }

@@ -1,13 +1,10 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Task, TaskList } from '../models/tasklist.entity';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { TaskList } from '../models/tasklist.schema';
 
-// import { ObjectID } from 'typeorm';
-
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import {
   CreateTaskListRequest,
-  TaskListResponse,
   UpdateTaskListRequest,
 } from '../models/tasklist.dto';
 import {
@@ -18,278 +15,153 @@ import {
 
 @Injectable()
 export class TaskListsService {
-  private readonly logger = new Logger('TaskList');
-
   constructor(
-    @InjectRepository(TaskList)
-    private readonly taskListRepository: Repository<TaskList>,
+    @InjectModel('TaskList') private taskListModel: Model<TaskList>,
   ) {}
 
-  async getAll(userId: string): Promise<TaskListResponse[]> {
-    const tasks = await this.taskListRepository.find({
-      where: { userId },
-      order: {
-        name: 'ASC',
-      },
-    });
+  async getAllTaskLists(userId: string): Promise<TaskList[]> {
+    const taskLists = await this.taskListModel
+      .find({ user: userId })
+      .select('-tasks')
+      .exec();
 
-    this.logger.debug(`Buscando TaskLists para ${userId}`);
-
-    return tasks.map(
-      (task) =>
-        new TaskListResponse({
-          _id: task._id,
-          name: task.name,
-          description: task.description,
-          tasks: task.tasks,
-          userId: task.userId,
-        }),
-    );
+    return taskLists;
   }
 
-  async getById(tasklistId: string, userId: string): Promise<TaskListResponse> {
-    this.logger.log('searching for: ' + tasklistId);
-    const taskList = await this.taskListRepository.findOneBy({
-      _id: tasklistId,
-    });
-    this.logger.log('found: ' + JSON.stringify(taskList));
-    this.logger.log('user: ' + userId);
+  async getTaskList(taskListId: string, userId: string): Promise<TaskList> {
+    const taskList = await this.taskListModel
+      .findOne({ _id: taskListId, user: userId })
+      .exec();
     if (!taskList) {
       throw new HttpException(
-        'Lista de tarefas não encontrada',
+        'Lista de tarefas não encontrada.',
         HttpStatus.NOT_FOUND,
       );
     }
-
-    if (taskList.userId != userId) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    this.logger.debug(`Buscando TaskList ${taskList._id} para ${userId}`);
-
-    return new TaskListResponse({
-      _id: taskList._id,
-      name: taskList.name,
-      description: taskList.description,
-      tasks: taskList.tasks,
-      userId: taskList.userId,
-    });
+    return taskList;
   }
 
-  async create(
-    tasklist: CreateTaskListRequest,
+  async createTaskList(
+    taskList: CreateTaskListRequest,
     userId: string,
-  ): Promise<TaskListResponse> {
-    const found = await this.taskListRepository.findOne({
-      where: {
-        name: tasklist.name,
-        userId: userId,
-      },
+  ): Promise<TaskList> {
+    const createdTaskList = new this.taskListModel({
+      ...taskList,
+      user: userId,
     });
+    await createdTaskList.save();
+    return createdTaskList;
+  }
 
-    if (!!found) {
-      throw new HttpException(
-        'Já existe uma lista de tarefas com este nome',
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    this.logger.debug(`Criando TaskList ${tasklist.name} para ${userId}`);
-    const created = await this.taskListRepository.save({
-      ...tasklist,
-      userId: userId,
-    });
-    this.logger.debug(
-      `TaskList ${tasklist.name} (${created._id}) criada para ${userId}`,
+  async updateTaskList(
+    taskListId: string,
+    taskList: UpdateTaskListRequest,
+    userId: string,
+  ): Promise<TaskList> {
+    const updatedTaskList = await this.taskListModel.findOneAndUpdate(
+      { _id: taskListId, user: userId },
+      { $set: taskList },
+      { new: true, runValidators: true },
     );
-    const response = new TaskListResponse({
-      _id: created._id,
-      name: created.name,
-      description: created.description,
-      userId: created.userId,
-      tasks: created.tasks,
-    });
-
-    return response;
-  }
-
-  async update(
-    tasklistId: string,
-    tasklist: UpdateTaskListRequest,
-    userId: string,
-  ): Promise<TaskListResponse> {
-    const found = await this.taskListRepository.findOne({
-      where: { _id: tasklistId },
-    });
-
-    if (!found) {
+    if (!updatedTaskList) {
       throw new HttpException(
-        'Lista de tarefas não encontrada',
+        'Lista de tarefas não encontrada.',
         HttpStatus.NOT_FOUND,
       );
     }
-
-    if (found.userId != userId) {
-      throw new HttpException(
-        'Você não tem permissão para fazer isso',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    this.logger.debug(`Atualizando TaskList ${found._id} para ${userId}`);
-    const response = await this.taskListRepository.save({
-      ...found,
-      ...tasklist,
-    });
-    this.logger.debug(`TaskList ${response._id} atualizada para ${userId}`);
-
-    return new TaskListResponse({
-      _id: response._id,
-      name: response.name,
-      description: response.description,
-      userId: response.userId,
-      tasks: response.tasks,
-    });
+    return updatedTaskList;
   }
 
-  async remove(tasklistId: string, userId: string): Promise<void> {
-    const found = await this.taskListRepository.findOne({
-      where: { _id: tasklistId },
+  async deleteTaskList(taskListId: string, userId: string): Promise<void> {
+    const deletedTaskList = await this.taskListModel.findOneAndDelete({
+      _id: taskListId,
+      user: userId,
     });
-
-    if (!found) {
+    if (!deletedTaskList) {
       throw new HttpException(
-        'Lista de tarefas não encontrada',
+        'Lista de tarefas não encontrada.',
         HttpStatus.NOT_FOUND,
       );
     }
-    if (found.userId != userId) {
-      throw new HttpException(
-        'Você não tem permissão para fazer isso',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    await this.taskListRepository.delete(tasklistId);
-
     return;
   }
 
   async createTask(
-    tasklistId: string,
+    taskListId: string,
     task: CreateTaskRequest,
     userId: string,
   ): Promise<TaskResponse> {
-    const foundTl = await this.taskListRepository.findOneBy({
-      _id: tasklistId,
-    });
+    const nTask = {
+      ...task,
+      user: userId,
+      _id: undefined,
+    };
 
-    if (!foundTl) {
+    const updatedTaskList = await this.taskListModel.findOneAndUpdate(
+      {
+        _id: taskListId,
+        user: userId,
+      },
+      {
+        $push: { tasks: nTask },
+      },
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedTaskList) {
       throw new HttpException(
-        'Lista de tarefas não encontrada',
+        'Lista de tarefas não encontrada.',
         HttpStatus.NOT_FOUND,
       );
     }
 
-    if (foundTl.userId != userId) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (foundTl.tasks.some((t) => t.name == task.name)) {
-      throw new HttpException(
-        'Já existe uma tarefa com este nome',
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    const nTask = new Task(task.name, task.description, task.completed);
-
-    foundTl.tasks.push(nTask);
-
-    await this.taskListRepository.save(foundTl);
-
-    return new TaskResponse({
-      ...nTask,
-    });
+    return updatedTaskList.tasks[updatedTaskList.tasks.length - 1];
   }
 
   async updateTask(
-    tasklistId: string,
+    taskListId: string,
     taskId: string,
     task: UpdateTaskRequest,
     userId: string,
   ): Promise<TaskResponse> {
-    const foundTl = await this.taskListRepository.findOneBy({
-      _id: tasklistId,
-    });
+    const updatedTaskList = await this.taskListModel.findOneAndUpdate(
+      {
+        _id: taskListId,
+        user: userId,
+        'tasks._id': taskId,
+      },
+      {
+        $set: { 'tasks.$': task },
+      },
+      { new: true, runValidators: true },
+    );
 
-    if (!foundTl) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
+    if (!updatedTaskList) {
+      throw new HttpException('Tarefa não encontrada.', HttpStatus.NOT_FOUND);
     }
 
-    if (foundTl.userId != userId) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    const tIndex = foundTl.tasks.findIndex((t) => t._id == taskId);
-
-    if (tIndex == -1) {
-      throw new HttpException('Tarefa não encontrada', HttpStatus.CONFLICT);
-    }
-
-    foundTl.tasks[tIndex] = { ...foundTl.tasks[tIndex], ...task };
-
-    await this.taskListRepository.save(foundTl);
-
-    return new TaskResponse({
-      ...foundTl.tasks[tIndex],
-    });
+    return updatedTaskList.tasks[updatedTaskList.tasks.length - 1];
   }
 
-  async removeTask(
-    tasklistId: string,
+  async deleteTask(
+    taskListId: string,
     taskId: string,
     userId: string,
   ): Promise<void> {
-    const foundTl = await this.taskListRepository.findOneBy({
-      _id: tasklistId,
-    });
+    const updatedTaskList = await this.taskListModel.findOneAndUpdate(
+      {
+        _id: taskListId,
+        user: userId,
+      },
+      {
+        $pull: { tasks: { _id: taskId } },
+      },
+      { new: true, runValidators: true },
+    );
 
-    if (!foundTl) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
+    if (!updatedTaskList) {
+      throw new HttpException('Tarefa não encontrada.', HttpStatus.NOT_FOUND);
     }
-
-    if (foundTl.userId != userId) {
-      throw new HttpException(
-        'Lista de tarefas não encontrada',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    const tIndex = foundTl.tasks.findIndex((t) => t._id == taskId);
-
-    if (tIndex == -1) {
-      throw new HttpException('Tarefa não encontrada', HttpStatus.CONFLICT);
-    }
-
-    foundTl.tasks.splice(tIndex, 1);
-
-    await this.taskListRepository.save(foundTl);
 
     return;
   }
